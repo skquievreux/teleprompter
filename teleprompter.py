@@ -6,10 +6,12 @@ import argparse
 import json
 import re
 import tkinter as tk
+import zipfile
 from pathlib import Path
 from tkinter import filedialog, messagebox
 from urllib.error import URLError
 from urllib.request import urlopen
+from xml.etree import ElementTree
 
 try:
     import pystray
@@ -42,10 +44,13 @@ Schließen-Button (X) minimiert ins System-Tray (falls verfügbar) statt
 die App zu beenden. Rechtsklick auf das Tray-Icon: Start/Pause,
 Einstellungen, Fenster zeigen, Beenden."""
 
-VERSION = "1.1.0"
-DEFAULT_API_URL = "http://localhost:3001/api/scripts/latest"
+VERSION = "1.2.0"
 SETTINGS_PATH = Path.home() / ".teleprompter_settings.json"
-SUPPORTED_EXTENSIONS = {".json", ".txt", ".md"}
+SUPPORTED_EXTENSIONS = {".json", ".txt", ".md", ".docx"}
+DEFAULT_SCRIPT = {
+    "title": "Kein Skript geladen",
+    "text": "Öffne über Datei → Datei öffnen / Ordner öffnen ein Skript (.json, .txt, .md, .docx).",
+}
 
 THEMES = {
     "Weiß auf Schwarz": ("white", "black"),
@@ -63,14 +68,30 @@ def parse_script(raw: str) -> dict:
     return {"title": data.get("title", "Untitled"), "text": data["text"]}
 
 
+def docx_to_text(path: str) -> str:
+    """Extracts plain text from a .docx (paragraphs joined by blank lines).
+    Uses only the stdlib — .docx is just a zip of XML, no python-docx needed."""
+    ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+    with zipfile.ZipFile(path) as zf:
+        xml = zf.read("word/document.xml")
+    root = ElementTree.fromstring(xml)
+    paragraphs = []
+    for p in root.iter(f"{{{ns['w']}}}p"):
+        text = "".join(t.text or "" for t in p.iter(f"{{{ns['w']}}}t"))
+        paragraphs.append(text)
+    return "\n\n".join(paragraphs)
+
+
 def load_script_from_path(path: str) -> dict:
-    """Loads a script from disk — .json uses {title, text}, .txt/.md are read as-is."""
+    """Loads a script from disk — .json uses {title, text}, .txt/.md/.docx are read as plain text."""
     p = Path(path)
-    raw = p.read_text(encoding="utf-8")
-    if p.suffix.lower() == ".json":
-        return parse_script(raw)
-    if p.suffix.lower() in SUPPORTED_EXTENSIONS:
-        return {"title": p.stem, "text": raw}
+    suffix = p.suffix.lower()
+    if suffix == ".json":
+        return parse_script(p.read_text(encoding="utf-8"))
+    if suffix == ".docx":
+        return {"title": p.stem, "text": docx_to_text(path)}
+    if suffix in SUPPORTED_EXTENSIONS:
+        return {"title": p.stem, "text": p.read_text(encoding="utf-8")}
     raise ValueError(f"Nicht unterstütztes Format: {p.suffix}")
 
 
@@ -81,22 +102,32 @@ def latest_in_folder(folder: str) -> str | None:
     return str(max(files, key=lambda p: p.stat().st_mtime))
 
 
-def load_script(file: str | None, folder: str | None, url: str | None) -> dict:
+def load_script(file: str | None, folder: str | None, url: str | None) -> tuple[dict, str | None]:
+    """Resolves the startup script. Returns (script, path) — path is the local
+    file actually used (for remembering it as 'last script'), or None for URL/none."""
     if folder:
         latest = latest_in_folder(folder)
         if not latest:
-            raise ValueError(f"Kein unterstütztes Skript (.json/.txt/.md) in {folder}")
+            raise ValueError(f"Kein unterstütztes Skript (.json/.txt/.md/.docx) in {folder}")
         script = load_script_from_path(latest)
         script["source"] = Path(latest).name
-        return script
+        return script, latest
     if file:
         script = load_script_from_path(file)
         script["source"] = Path(file).name
-        return script
-    with urlopen(url or DEFAULT_API_URL, timeout=5) as res:
-        script = parse_script(res.read().decode("utf-8"))
-        script["source"] = "MotionDesk API"
-        return script
+        return script, file
+    if url:
+        with urlopen(url, timeout=5) as res:
+            script = parse_script(res.read().decode("utf-8"))
+            script["source"] = "API"
+            return script, None
+    settings = load_settings()
+    last_path = settings.get("last_path")
+    if last_path and Path(last_path).exists():
+        script = load_script_from_path(last_path)
+        script["source"] = Path(last_path).name
+        return script, last_path
+    return DEFAULT_SCRIPT.copy(), None
 
 
 def load_settings() -> dict:
@@ -148,8 +179,9 @@ START_GRACE_MS = 3000  # first line holds still this long after countdown before
 class TeleprompterApp:
     TICK_MS = 50
 
-    def __init__(self, root: tk.Tk, script: dict):
+    def __init__(self, root: tk.Tk, script: dict, path: str | None = None):
         self.root = root
+        self.last_path = path
         self.root.title(f"Teleprompter v{VERSION} — {script['title']} ({script.get('source', '—')})")
         self.root.geometry("900x700")
         self.root.minsize(700, 450)
@@ -290,14 +322,14 @@ class TeleprompterApp:
     def open_file_dialog(self) -> None:
         path = filedialog.askopenfilename(
             title="Skript öffnen",
-            filetypes=[("Teleprompter-Skripte", "*.json *.txt *.md"), ("Alle Dateien", "*.*")],
+            filetypes=[("Teleprompter-Skripte", "*.json *.txt *.md *.docx"), ("Alle Dateien", "*.*")],
         )
         if not path:
             return
         try:
             script = load_script_from_path(path)
             script["source"] = Path(path).name
-            self.load_new_script(script)
+            self.load_new_script(script, path)
         except (OSError, ValueError) as e:
             messagebox.showerror("Fehler", f"Konnte Skript nicht laden: {e}")
 
@@ -307,13 +339,15 @@ class TeleprompterApp:
             return
         latest = latest_in_folder(folder)
         if not latest:
-            messagebox.showwarning("Kein Skript gefunden", "Keine .json/.txt/.md Datei in diesem Ordner.")
+            messagebox.showwarning("Kein Skript gefunden", "Keine .json/.txt/.md/.docx Datei in diesem Ordner.")
             return
         script = load_script_from_path(latest)
         script["source"] = Path(latest).name
-        self.load_new_script(script)
+        self.load_new_script(script, latest)
 
-    def load_new_script(self, script: dict) -> None:
+    def load_new_script(self, script: dict, path: str | None = None) -> None:
+        self.last_path = path
+        self._save_settings_now()
         self.reset()
         self.text.configure(state="normal")
         self.text.delete("1.0", "end")
@@ -357,6 +391,7 @@ class TeleprompterApp:
             "margin_right": self.margin_right.get(),
             "align": self.align.get(),
             "theme": self.theme.get(),
+            "last_path": self.last_path,
         })
 
     def _on_close(self) -> None:
@@ -494,38 +529,21 @@ class TeleprompterApp:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=f"Standalone teleprompter v{VERSION}")
-    parser.add_argument("--file", help="Pfad zu einer Script-Datei (.json, .txt, .md)")
-    parser.add_argument("--folder", help="Ordner — lädt die zuletzt geänderte .json/.txt/.md Datei darin")
-    parser.add_argument("--url", help="API-URL, die Script-JSON liefert", default=DEFAULT_API_URL)
+    parser.add_argument("--file", help="Pfad zu einer Script-Datei (.json, .txt, .md, .docx)")
+    parser.add_argument("--folder", help="Ordner — lädt die zuletzt geänderte Skript-Datei darin")
+    parser.add_argument("--url", help="API-URL, die Script-JSON liefert (optional, kein Default)")
     args = parser.parse_args()
 
-    use_url = not args.file and not args.folder
+    # Never blocks on a dialog at startup: falls back to the last-used script,
+    # then to an empty placeholder, instead of asking the user anything.
     try:
-        script = load_script(args.file, args.folder, args.url if use_url else None)
+        script, path = load_script(args.file, args.folder, args.url)
     except (OSError, URLError, json.JSONDecodeError, ValueError) as e:
-        if not use_url:
-            print(f"Konnte Skript nicht laden: {e}")
-            return
-        # Default source (API) failed — fall back to a file picker instead of a hard error
-        print(f"MotionDesk-API nicht erreichbar ({e}) — bitte Skript-Datei wählen.")
-        picker = tk.Tk()
-        picker.withdraw()
-        path = filedialog.askopenfilename(
-            title="MotionDesk-API nicht erreichbar — Skript-Datei wählen",
-            filetypes=[("Teleprompter-Skripte", "*.json *.txt *.md"), ("Alle Dateien", "*.*")],
-        )
-        picker.destroy()
-        if not path:
-            return
-        try:
-            script = load_script_from_path(path)
-            script["source"] = Path(path).name
-        except (OSError, ValueError) as e2:
-            print(f"Konnte Skript nicht laden: {e2}")
-            return
+        print(f"Konnte Skript nicht laden ({e}) — starte mit leerem Teleprompter.")
+        script, path = DEFAULT_SCRIPT.copy(), None
 
     root = tk.Tk()
-    TeleprompterApp(root, script)
+    TeleprompterApp(root, script, path)
     root.mainloop()
 
 

@@ -5,9 +5,18 @@ Vorlesen von Skripten während einer Video-Aufnahme (z.B. mit OBS).
 
 ## Download
 
-Fertige `.exe` für Windows: **[Landingpage](https://skquievreux.github.io/teleprompter/)**
-oder direkt **[teleprompter.exe](https://cdn.runitfast.xyz/softwaredistro/teleprompter.exe)**
-(immer die neueste Version, kein Python nötig).
+Für Windows, kein Python nötig — immer die neueste Version:
+
+- **[Landingpage](https://skquievreux.github.io/teleprompter/)** mit beiden Optionen
+- **[teleprompter-setup.exe](https://cdn.runitfast.xyz/softwaredistro/teleprompter-setup.exe)** — Installer mit Startmenü-Eintrag & Deinstallation über „Apps & Features"
+- **[teleprompter.exe](https://cdn.runitfast.xyz/softwaredistro/teleprompter.exe)** — portabel, einfach ausführen
+
+Oder per [Scoop](https://scoop.sh):
+
+```powershell
+scoop bucket add skquievreux https://github.com/skquievreux/scoop-bucket
+scoop install skquievreux/teleprompter
+```
 
 ## Start (aus dem Source)
 
@@ -43,6 +52,14 @@ Datei/Ordner lassen sich auch nachträglich über das **Datei**-Menü in der App
 |--------|--------|
 | `.json` | `{"title": "...", "text": "..."}` |
 | `.txt` / `.md` | reiner Text, Dateiname (ohne Endung) wird zum Titel |
+| `.docx` | Word-Text wird extrahiert (Absätze → Zeilenumbrüche), Dateiname wird zum Titel. Klassisches `.doc` wird nicht unterstützt — vorher in Word als `.docx` speichern. |
+
+## Start ohne Argumente
+
+Ohne `--file`/`--folder`/`--url` öffnet die App immer sofort, ohne Dialog oder
+Netzwerkzugriff: zuerst wird versucht, das zuletzt geladene Skript wieder zu
+öffnen (`~/.teleprompter_settings.json`), sonst startet sie mit einem leeren
+Platzhaltertext. Ein Skript danach jederzeit über das **Datei**-Menü laden.
 
 ## Features
 

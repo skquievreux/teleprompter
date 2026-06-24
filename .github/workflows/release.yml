@@ -22,16 +22,26 @@ jobs:
 
       - run: pyinstaller --onefile --windowed --name teleprompter teleprompter.py
 
+      - name: Build installer (Inno Setup, preinstalled on windows-latest)
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=$version installer\teleprompter.iss
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/teleprompter.exe
+          files: |
+            dist/teleprompter.exe
+            dist/teleprompter-setup.exe
 
       - name: Publish to download CDN
         shell: bash
         run: |
-          curl -sf -X POST https://cdn.runitfast.xyz \
-            -H "X-Upload-Secret: ${{ secrets.WORKER_UPLOAD_SECRET }}" \
-            -F "bucket=softwaredistro" \
-            -F "filename=teleprompter.exe" \
-            -F "file=@dist/teleprompter.exe;type=application/octet-stream"
+          for f in teleprompter.exe teleprompter-setup.exe; do
+            curl -sf -X POST https://cdn.runitfast.xyz \
+              -H "X-Upload-Secret: ${{ secrets.WORKER_UPLOAD_SECRET }}" \
+              -F "bucket=softwaredistro" \
+              -F "filename=$f" \
+              -F "file=@dist/$f;type=application/octet-stream"
+          done

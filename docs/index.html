@@ -8,8 +8,12 @@
   body { font-family: system-ui, sans-serif; background: #111; color: #eee; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 2rem; text-align: center; }
   h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
   p { color: #aaa; max-width: 32rem; }
-  a.button { margin-top: 1.5rem; padding: 0.9rem 2rem; background: #2ecc71; color: #111; font-weight: 600; text-decoration: none; border-radius: 0.5rem; font-size: 1.1rem; }
+  .buttons { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; justify-content: center; }
+  a.button { padding: 0.9rem 2rem; background: #2ecc71; color: #111; font-weight: 600; text-decoration: none; border-radius: 0.5rem; font-size: 1.1rem; }
   a.button:hover { background: #27ae60; }
+  a.button.secondary { background: #333; color: #eee; }
+  a.button.secondary:hover { background: #444; }
+  code { background: #222; padding: 0.2rem 0.5rem; border-radius: 0.3rem; }
   footer { margin-top: 3rem; }
   footer a { color: #888; }
 </style>
@@ -18,7 +22,11 @@
   <h1>📜 Teleprompter</h1>
   <p>Eigenständige Desktop-App für Windows zum Vorlesen von Skripten während einer
   Video-Aufnahme. Kein Python nötig, einfach starten.</p>
-  <a class="button" href="https://cdn.runitfast.xyz/softwaredistro/teleprompter.exe">teleprompter.exe herunterladen</a>
+  <div class="buttons">
+    <a class="button" href="https://cdn.runitfast.xyz/softwaredistro/teleprompter-setup.exe">Installer (empfohlen)</a>
+    <a class="button secondary" href="https://cdn.runitfast.xyz/softwaredistro/teleprompter.exe">Portable .exe</a>
+  </div>
+  <p style="margin-top: 2rem;">Oder per Scoop: <code>scoop bucket add skquievreux https://github.com/skquievreux/scoop-bucket && scoop install skquievreux/teleprompter</code></p>
   <footer><a href="https://github.com/skquievreux/teleprompter">Source &amp; Doku auf GitHub</a></footer>
 </body>
 </html>

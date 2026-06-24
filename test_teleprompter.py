@@ -2,9 +2,11 @@ import tempfile
 import time
 from pathlib import Path
 
+import zipfile
+
 from teleprompter import (
     parse_script, compute_step, format_time, load_script_from_path, latest_in_folder,
-    build_word_groups, group_interval_ms,
+    build_word_groups, group_interval_ms, docx_to_text,
 )
 
 
@@ -45,7 +47,7 @@ def test_load_script_from_path_reads_plain_text_with_filename_as_title():
 
 def test_load_script_from_path_rejects_unsupported_extension():
     with tempfile.TemporaryDirectory() as tmp:
-        path = Path(tmp) / "script.docx"
+        path = Path(tmp) / "script.pdf"
         path.write_text("x", encoding="utf-8")
         try:
             load_script_from_path(str(path))
@@ -54,11 +56,40 @@ def test_load_script_from_path_rejects_unsupported_extension():
             pass
 
 
+DOCX_DOCUMENT_XML = """<?xml version="1.0"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>Hallo</w:t></w:r><w:r><w:t> Welt</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Zweiter Absatz</w:t></w:r></w:p>
+  </w:body>
+</w:document>"""
+
+
+def make_fake_docx(path: Path) -> None:
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("word/document.xml", DOCX_DOCUMENT_XML)
+
+
+def test_docx_to_text_extracts_paragraphs():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "script.docx"
+        make_fake_docx(path)
+        assert docx_to_text(str(path)) == "Hallo Welt\n\nZweiter Absatz"
+
+
+def test_load_script_from_path_reads_docx_with_filename_as_title():
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "intro.docx"
+        make_fake_docx(path)
+        result = load_script_from_path(str(path))
+        assert result == {"title": "intro", "text": "Hallo Welt\n\nZweiter Absatz"}
+
+
 def test_latest_in_folder_picks_most_recently_modified_supported_file():
     with tempfile.TemporaryDirectory() as tmp:
         older = Path(tmp) / "old.txt"
         newer = Path(tmp) / "new.md"
-        ignored = Path(tmp) / "ignored.docx"
+        ignored = Path(tmp) / "ignored.pdf"
         older.write_text("old", encoding="utf-8")
         ignored.write_text("ignored", encoding="utf-8")
         time.sleep(0.01)
@@ -92,6 +123,8 @@ if __name__ == "__main__":
     test_format_time_pads_minutes_and_seconds()
     test_load_script_from_path_reads_plain_text_with_filename_as_title()
     test_load_script_from_path_rejects_unsupported_extension()
+    test_docx_to_text_extracts_paragraphs()
+    test_load_script_from_path_reads_docx_with_filename_as_title()
     test_latest_in_folder_picks_most_recently_modified_supported_file()
     test_build_word_groups_chunks_three_words_with_char_offsets()
     test_build_word_groups_handles_empty_text()
