@@ -20,7 +20,7 @@ jobs:
 
       - run: pip install pyinstaller -r requirements.txt
 
-      - run: pyinstaller --onefile --windowed --name teleprompter teleprompter.py
+      - run: pyinstaller --onefile --windowed --name teleprompter --icon assets/icon.ico --add-data "assets;assets" teleprompter.py
 
       - name: Build installer (Inno Setup, preinstalled on windows-latest)
         shell: pwsh

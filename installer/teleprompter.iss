@@ -14,6 +14,7 @@ AppPublisherURL=https://github.com/skquievreux/teleprompter
 DefaultDirName={autopf}\Teleprompter
 DefaultGroupName=Teleprompter
 UninstallDisplayIcon={app}\teleprompter.exe
+SetupIconFile=..\assets\icon.ico
 OutputDir=..\dist
 OutputBaseFilename=teleprompter-setup
 Compression=lzma

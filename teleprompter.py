@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Standalone teleprompter — reads a script (JSON: {title, text}, or plain
-.txt/.md) from a file, a folder, or the MotionDesk API and scrolls it for
-reading on camera."""
+"""Standalone teleprompter — reads a script (JSON: {title, text}, plain
+.txt/.md/.docx, or a remote API) and scrolls it for reading on camera."""
 import argparse
 import json
 import re
+import sys
 import tkinter as tk
 import zipfile
 from pathlib import Path
@@ -13,9 +13,13 @@ from urllib.error import URLError
 from urllib.request import urlopen
 from xml.etree import ElementTree
 
+# Works both from source and from a PyInstaller --onefile build (assets are
+# extracted to a temp dir at runtime, exposed via sys._MEIPASS).
+ASSETS_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "assets"
+
 try:
     import pystray
-    from PIL import Image, ImageDraw
+    from PIL import Image
     TRAY_AVAILABLE = True
 except ImportError:
     TRAY_AVAILABLE = False
@@ -365,8 +369,8 @@ class TeleprompterApp:
         messagebox.showinfo(f"Teleprompter v{VERSION} — Hilfe", HELP_TEXT)
 
     def _start_tray(self) -> None:
-        image = Image.new("RGB", (64, 64), "black")
-        ImageDraw.Draw(image).ellipse((8, 8, 56, 56), fill="#7c3aed")
+        icon_path = ASSETS_DIR / "icon.png"
+        image = Image.open(icon_path) if icon_path.exists() else Image.new("RGB", (64, 64), "#7c3aed")
         menu = pystray.Menu(
             pystray.MenuItem("Fenster zeigen", lambda: self.root.after(0, self._show_window), default=True),
             pystray.MenuItem("Start/Pause", lambda: self.root.after(0, self.toggle)),
