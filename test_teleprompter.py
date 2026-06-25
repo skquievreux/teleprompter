@@ -6,7 +6,7 @@ import zipfile
 
 from teleprompter import (
     parse_script, compute_step, format_time, load_script_from_path, latest_in_folder,
-    build_word_groups, group_interval_ms, docx_to_text,
+    build_word_groups, group_interval_ms, docx_to_text, is_newer_version,
 )
 
 
@@ -109,6 +109,12 @@ def test_build_word_groups_handles_empty_text():
     assert build_word_groups("") == []
 
 
+def test_is_newer_version_compares_numerically_not_lexically():
+    assert is_newer_version("1.10.0", "1.9.0") is True
+    assert is_newer_version("1.2.0", "1.3.0") is False
+    assert is_newer_version("1.3.0", "1.3.0") is False
+
+
 def test_group_interval_ms_scales_inversely_with_speed():
     fast = group_interval_ms(speed_lines_per_sec=4)
     slow = group_interval_ms(speed_lines_per_sec=2)
@@ -126,6 +132,7 @@ if __name__ == "__main__":
     test_docx_to_text_extracts_paragraphs()
     test_load_script_from_path_reads_docx_with_filename_as_title()
     test_latest_in_folder_picks_most_recently_modified_supported_file()
+    test_is_newer_version_compares_numerically_not_lexically()
     test_build_word_groups_chunks_three_words_with_char_offsets()
     test_build_word_groups_handles_empty_text()
     test_group_interval_ms_scales_inversely_with_speed()

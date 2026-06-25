@@ -18,6 +18,15 @@ scoop bucket add skquievreux https://github.com/skquievreux/scoop-bucket
 scoop install skquievreux/teleprompter
 ```
 
+> Bitte nur **einen** Weg gleichzeitig benutzen (Installer *oder* Scoop *oder*
+> portabel) — sonst tauchen mehrere "Teleprompter"-Einträge in der
+> Windows-Suche auf und du startest versehentlich eine alte Version.
+> Update: Installer/`.exe` neu herunterladen und ausführen (schließt eine
+> laufende alte Version automatisch); Scoop: `scoop update teleprompter`.
+> Deinstallieren: über „Apps & Features" (Installer) bzw. `scoop uninstall
+> teleprompter` (Scoop). Die App zeigt neue Versionen selbst an (Menü
+> „Nach Updates suchen" bzw. ein grüner Hinweis, falls eine neue Version da ist).
+
 ## Start (aus dem Source)
 
 **Windows, am einfachsten:** Doppelklick auf `start.bat` (oder im Terminal:

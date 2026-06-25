@@ -21,6 +21,12 @@ Compression=lzma
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
+; Auto-closes a running teleprompter.exe before install/upgrade/uninstall —
+; without this, a running instance silently blocks the file overwrite/delete
+; and leaves a stale old version behind (no error shown to the user).
+CloseApplications=force
+RestartApplications=no
+UninstallDisplayName=Teleprompter
 
 [Languages]
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"

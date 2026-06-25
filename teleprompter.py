@@ -5,12 +5,14 @@ import argparse
 import json
 import re
 import sys
+import threading
 import tkinter as tk
+import webbrowser
 import zipfile
 from pathlib import Path
 from tkinter import filedialog, messagebox
 from urllib.error import URLError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 from xml.etree import ElementTree
 
 # Works both from source and from a PyInstaller --onefile build (assets are
@@ -48,13 +50,33 @@ Schließen-Button (X) minimiert ins System-Tray (falls verfügbar) statt
 die App zu beenden. Rechtsklick auf das Tray-Icon: Start/Pause,
 Einstellungen, Fenster zeigen, Beenden."""
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 SETTINGS_PATH = Path.home() / ".teleprompter_settings.json"
 SUPPORTED_EXTENSIONS = {".json", ".txt", ".md", ".docx"}
 DEFAULT_SCRIPT = {
     "title": "Kein Skript geladen",
     "text": "Öffne über Datei → Datei öffnen / Ordner öffnen ein Skript (.json, .txt, .md, .docx).",
 }
+
+GITHUB_REPO = "skquievreux/teleprompter"
+LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+RELEASES_PAGE = f"https://github.com/{GITHUB_REPO}/releases/latest"
+
+
+def fetch_latest_version(timeout: float = 4) -> str | None:
+    """Returns the latest released version tag (without 'v'), or None on any failure."""
+    req = Request(LATEST_RELEASE_API, headers={"Accept": "application/vnd.github+json"})
+    try:
+        with urlopen(req, timeout=timeout) as res:
+            data = json.loads(res.read().decode("utf-8"))
+        return data.get("tag_name", "").lstrip("v") or None
+    except (URLError, OSError, ValueError):
+        return None
+
+
+def is_newer_version(latest: str, current: str) -> bool:
+    parts = lambda v: tuple(int(n) for n in v.split(".") if n.isdigit())
+    return parts(latest) > parts(current)
 
 THEMES = {
     "Weiß auf Schwarz": ("white", "black"),
@@ -265,6 +287,10 @@ class TeleprompterApp:
         self.timer_label = tk.Label(controls, text="00:00 · 0%", fg="white", bg="black", font=("Helvetica", 14, "bold"))
         self.timer_label.pack(side="right", padx=16)
 
+        self.update_label = tk.Label(controls, fg="#2ecc71", bg="black", cursor="hand2")
+        self.update_label.bind("<Button-1>", lambda _e: webbrowser.open(RELEASES_PAGE))
+        threading.Thread(target=self._check_for_update, daemon=True).start()
+
         root.bind("<space>", lambda _e: self.toggle())
         root.bind("<Up>", lambda _e: self.speed.set(round(min(10, self.speed.get() + 0.2), 1)))
         root.bind("<Down>", lambda _e: self.speed.set(round(max(0.2, self.speed.get() - 0.2), 1)))
@@ -296,6 +322,7 @@ class TeleprompterApp:
         menubar.add_cascade(label="Datei", menu=file_menu)
 
         menubar.add_command(label="Einstellungen", command=self.open_settings_dialog)
+        menubar.add_command(label="Nach Updates suchen", command=self.check_for_update_manual)
         menubar.add_command(label="Hilfe", command=self.show_help)
         self.root.config(menu=menubar)
 
@@ -367,6 +394,26 @@ class TeleprompterApp:
 
     def show_help(self) -> None:
         messagebox.showinfo(f"Teleprompter v{VERSION} — Hilfe", HELP_TEXT)
+
+    def _check_for_update(self) -> None:
+        """Runs in a background thread — never blocks startup, fails silently."""
+        latest = fetch_latest_version()
+        if latest and is_newer_version(latest, VERSION):
+            self.root.after(0, self._show_update_available, latest)
+
+    def _show_update_available(self, latest: str) -> None:
+        self.update_label.configure(text=f"⬆ Update verfügbar: v{latest}")
+        self.update_label.pack(side="right", padx=16)
+
+    def check_for_update_manual(self) -> None:
+        latest = fetch_latest_version()
+        if latest is None:
+            messagebox.showwarning("Update-Check", "Konnte nicht prüfen (keine Verbindung?).")
+        elif is_newer_version(latest, VERSION):
+            if messagebox.askyesno("Update verfügbar", f"v{latest} ist verfügbar (du hast v{VERSION}).\nRelease-Seite öffnen?"):
+                webbrowser.open(RELEASES_PAGE)
+        else:
+            messagebox.showinfo("Update-Check", f"Du hast bereits die neueste Version (v{VERSION}).")
 
     def _start_tray(self) -> None:
         icon_path = ASSETS_DIR / "icon.png"
