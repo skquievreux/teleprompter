@@ -51,3 +51,27 @@ jobs:
               -F "filename=$f" \
               -F "file=@dist/$f;type=application/octet-stream"
           done
+
+      - name: Update Scoop manifest
+        if: ${{ secrets.SCOOP_BUCKET_TOKEN != '' }}
+        shell: pwsh
+        env:
+          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          $hash = (Get-FileHash dist/teleprompter.exe -Algorithm SHA256).Hash.ToLower()
+
+          git clone "https://x-access-token:$env:SCOOP_BUCKET_TOKEN@github.com/skquievreux/scoop-bucket.git" scoop-bucket
+          $manifestPath = "scoop-bucket/bucket/teleprompter.json"
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          $manifest.version = $version
+          $manifest.url = "https://github.com/skquievreux/teleprompter/releases/download/${{ github.ref_name }}/teleprompter.exe"
+          $manifest.hash = $hash
+          $manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath
+
+          cd scoop-bucket
+          git config user.name "teleprompter-release-bot"
+          git config user.email "actions@github.com"
+          git add bucket/teleprompter.json
+          git commit -m "chore: update teleprompter manifest to v$version"
+          git push
