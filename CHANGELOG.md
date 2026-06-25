@@ -4,6 +4,14 @@ Ab hier gepflegt von [release-please](https://github.com/googleapis/release-plea
 neue Einträge werden automatisch aus Commit-Messages (Conventional Commits)
 generiert, sobald ein Release-PR gemerged wird.
 
+## [1.5.0](https://github.com/skquievreux/teleprompter/compare/v1.4.1...v1.5.0) (2026-06-25)
+
+
+### Features
+
+* auto-update Scoop manifest from the release workflow ([02acad9](https://github.com/skquievreux/teleprompter/commit/02acad99b39517b3dd36cba6f5b5e4b93fa9e444))
+* introduce semantic releases via release-please, professional README ([1f466ed](https://github.com/skquievreux/teleprompter/commit/1f466edd8b9a24e7a5846c2b69c02e29dadd76c5))
+
 ## [1.4.1] - 2026-06-25
 
 - fix: Fenster-/Taskbar-Icon wurde nie gesetzt (nur das Datei-Icon der `.exe`)
