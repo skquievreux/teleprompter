@@ -1,7 +1,37 @@
 # Teleprompter
 
+[![Release](https://img.shields.io/github/v/release/skquievreux/teleprompter?label=release)](https://github.com/skquievreux/teleprompter/releases/latest)
+[![Build](https://github.com/skquievreux/teleprompter/actions/workflows/release.yml/badge.svg)](https://github.com/skquievreux/teleprompter/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-stdlib%20only-3776AB)](teleprompter.py)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](#download)
+
+<img src="assets/icon.png" alt="Teleprompter Icon" width="80" align="left" style="margin-right: 1rem;">
+
 Eigenständige Desktop-App (Python, nur Standardbibliothek — `tkinter`) zum
 Vorlesen von Skripten während einer Video-Aufnahme (z.B. mit OBS).
+
+<br clear="left">
+
+## Stack & Build-Pipeline
+
+| Schicht | Technologie |
+|---------|-------------|
+| App | Python 3.12, `tkinter` (stdlib) — keine Pflicht-Abhängigkeiten, `pystray`/`Pillow` optional fürs Tray-Icon |
+| Build | [PyInstaller](https://pyinstaller.org) (`--onefile --windowed`) |
+| Installer | [Inno Setup 6](https://jrsoftware.org/isinfo.php) (Startmenü, Uninstaller, Auto-Close laufender Instanzen) |
+| CI/CD | GitHub Actions — Build, Test, Release |
+| Versionierung | [release-please](https://github.com/googleapis/release-please) (Conventional Commits → SemVer + [CHANGELOG.md](CHANGELOG.md)) |
+| Distribution | GitHub Releases · [Scoop](https://scoop.sh) · Cloudflare R2 + Worker-Gateway (CDN) |
+| Landingpage | GitHub Pages (statisches HTML, `docs/`) |
+
+**Release-Fluss:** Commit mit [Conventional-Commits](https://www.conventionalcommits.org/)-Präfix
+(`feat:`, `fix:`, …) auf `main` → release-please öffnet/aktualisiert automatisch
+einen Release-PR mit Versionsbump + Changelog → PR mergen → Tag + GitHub
+Release werden automatisch erstellt → das triggert den Build-Workflow
+([release.yml](.github/workflows/release.yml)): PyInstaller-Build →
+Inno-Setup-Installer → Upload zu GitHub Release → Cloudflare-R2-CDN →
+Scoop-Manifest-Update. Kein manueller Tag-Push mehr nötig.
 
 ## Download
 
