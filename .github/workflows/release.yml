@@ -20,6 +20,12 @@ jobs:
 
       - run: pip install pyinstaller -r requirements.txt
 
+      - name: Sync VERSION constant to the release tag
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          (Get-Content teleprompter.py) -replace '^VERSION = ".*"', "VERSION = ""$version""" | Set-Content teleprompter.py
+
       - run: pyinstaller --onefile --windowed --name teleprompter --icon assets/icon.ico --add-data "assets;assets" teleprompter.py
 
       - name: Build installer (Inno Setup, preinstalled on windows-latest)

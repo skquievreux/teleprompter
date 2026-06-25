@@ -50,7 +50,7 @@ Schließen-Button (X) minimiert ins System-Tray (falls verfügbar) statt
 die App zu beenden. Rechtsklick auf das Tray-Icon: Start/Pause,
 Einstellungen, Fenster zeigen, Beenden."""
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 SETTINGS_PATH = Path.home() / ".teleprompter_settings.json"
 SUPPORTED_EXTENSIONS = {".json", ".txt", ".md", ".docx"}
 DEFAULT_SCRIPT = {
@@ -60,7 +60,7 @@ DEFAULT_SCRIPT = {
 
 GITHUB_REPO = "skquievreux/teleprompter"
 LATEST_RELEASE_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-RELEASES_PAGE = f"https://github.com/{GITHUB_REPO}/releases/latest"
+DOWNLOAD_PAGE = "https://skquievreux.github.io/teleprompter/"
 
 
 def fetch_latest_version(timeout: float = 4) -> str | None:
@@ -211,6 +211,11 @@ class TeleprompterApp:
         self.root.title(f"Teleprompter v{VERSION} — {script['title']} ({script.get('source', '—')})")
         self.root.geometry("900x700")
         self.root.minsize(700, 450)
+        icon_ico = ASSETS_DIR / "icon.ico"
+        if icon_ico.exists():
+            # PyInstaller --icon only sets the .exe file icon (seen in Explorer) —
+            # the running window's title bar/taskbar icon needs this separately.
+            self.root.iconbitmap(default=str(icon_ico))
 
         settings = load_settings()
         self.font_size = tk.IntVar(value=settings.get("font_size", 40))
@@ -288,7 +293,7 @@ class TeleprompterApp:
         self.timer_label.pack(side="right", padx=16)
 
         self.update_label = tk.Label(controls, fg="#2ecc71", bg="black", cursor="hand2")
-        self.update_label.bind("<Button-1>", lambda _e: webbrowser.open(RELEASES_PAGE))
+        self.update_label.bind("<Button-1>", lambda _e: webbrowser.open(DOWNLOAD_PAGE))
         threading.Thread(target=self._check_for_update, daemon=True).start()
 
         root.bind("<space>", lambda _e: self.toggle())
@@ -411,7 +416,7 @@ class TeleprompterApp:
             messagebox.showwarning("Update-Check", "Konnte nicht prüfen (keine Verbindung?).")
         elif is_newer_version(latest, VERSION):
             if messagebox.askyesno("Update verfügbar", f"v{latest} ist verfügbar (du hast v{VERSION}).\nRelease-Seite öffnen?"):
-                webbrowser.open(RELEASES_PAGE)
+                webbrowser.open(DOWNLOAD_PAGE)
         else:
             messagebox.showinfo("Update-Check", f"Du hast bereits die neueste Version (v{VERSION}).")
 
